@@ -1,0 +1,189 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # 1. Tests + Coverage
+  # ──────────────────────────────────────────────────────────────────────────
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests with coverage
+        run: |
+          pytest --cov=. --cov-report=xml --cov-report=term-missing \
+                 -v --tb=short
+        env:
+          LOG_FORMAT: text   # human-readable output in CI logs
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        if: matrix.python-version == '3.12'
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 2. Security — static analysis (bandit) + dependency audit (pip-audit)
+  # ──────────────────────────────────────────────────────────────────────────
+  security:
+    name: Security scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install tools
+        run: |
+          pip install bandit[toml] pip-audit
+
+      - name: bandit — static code analysis
+        # -ll = report only MEDIUM+ severity
+        # -ii = report only MEDIUM+ confidence
+        run: |
+          bandit -r . \
+            --exclude tests,./static \
+            -ll -ii \
+            --format json \
+            --output bandit-report.json || true
+          python -c "
+          import json, sys
+          r = json.load(open('bandit-report.json'))
+          highs = [i for i in r['results'] if i['issue_severity'] == 'HIGH']
+          if highs:
+              print('HIGH severity issues found:')
+              for h in highs:
+                  print(f\"  {h['filename']}:{h['line_number']} — {h['issue_text']}\")
+              sys.exit(1)
+          print(f\"bandit: {len(r['results'])} issues (none HIGH)\")
+          "
+
+      - name: pip-audit — dependency vulnerabilities (SCA)
+        run: |
+          pip-audit --requirement requirements.txt \
+            --format json \
+            --output pip-audit-report.json || true
+          python -c "
+          import json, sys
+          data = json.load(open('pip-audit-report.json'))
+          vulns = [d for d in data.get('dependencies', []) if d.get('vulns')]
+          if vulns:
+              print('Vulnerable dependencies found:')
+              for d in vulns:
+                  for v in d['vulns']:
+                      print(f\"  {d['name']}=={d['version']} — {v['id']}: {v['description'][:100]}\")
+              sys.exit(1)
+          print('pip-audit: no vulnerabilities found')
+          "
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            pip-audit-report.json
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 3. Secret scanning (truffleHog)
+  # ──────────────────────────────────────────────────────────────────────────
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history for truffleHog
+
+      - name: TruffleHog — detect leaked secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 4. Docker build + SBOM generation
+  # ──────────────────────────────────────────────────────────────────────────
+  docker:
+    name: Docker build + SBOM
+    runs-on: ubuntu-latest
+    needs: [test, security]   # only build if tests + security pass
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: findlei:ci-${{ github.sha }}
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+          outputs: type=docker,dest=/tmp/findlei.tar
+
+      - name: Load image
+        run: docker load < /tmp/findlei.tar
+
+      - name: Install Syft (SBOM generator)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh \
+            | sh -s -- -b /usr/local/bin
+
+      - name: Generate SBOM (CycloneDX JSON)
+        run: |
+          syft findlei:ci-${{ github.sha }} \
+            -o cyclonedx-json=sbom.cyclonedx.json \
+            -o spdx-json=sbom.spdx.json
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: |
+            sbom.cyclonedx.json
+            sbom.spdx.json
+
+      # Optional: push to registry on main branch
+      # Uncomment and add DOCKERHUB_USERNAME / DOCKERHUB_TOKEN secrets
+      # - name: Login to Docker Hub
+      #   if: github.ref == 'refs/heads/main'
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKERHUB_USERNAME }}
+      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
+      #
+      # - name: Push image
+      #   if: github.ref == 'refs/heads/main'
+      #   run: docker push findlei:ci-${{ github.sha }}

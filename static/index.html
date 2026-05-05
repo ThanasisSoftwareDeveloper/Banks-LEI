@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FindLEI — LEI Compliance Checker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:      #0D1B2A;
+      --navy-mid:  #1B3A5C;
+      --navy-soft: #253F5C;
+      --teal:      #0D9973;
+      --teal-light:#12B886;
+      --teal-pale: #E6F7F3;
+      --gold:      #E8A838;
+      --slate:     #8AA0B5;
+      --slate-pale:#EBF0F5;
+      --white:     #FAFCFF;
+      --danger:    #D94F3D;
+      --warn:      #E8A838;
+
+      --radius:    8px;
+      --radius-lg: 16px;
+      --shadow:    0 4px 24px rgba(13,27,42,0.14);
+      --shadow-lg: 0 12px 48px rgba(13,27,42,0.22);
+
+      --font-display: 'DM Serif Display', Georgia, serif;
+      --font-body:    'Inter', system-ui, sans-serif;
+      --font-mono:    'DM Mono', 'Courier New', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--navy);
+      color: var(--white);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────────────── */
+    .page-wrap  { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+
+    /* ── Header ───────────────────────────────────────────────────────────── */
+    header {
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      padding: 20px 0;
+    }
+    header .inner {
+      max-width: 860px; margin: 0 auto; padding: 0 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo {
+      display: flex; align-items: baseline; gap: 6px;
+    }
+    .logo-text {
+      font-family: var(--font-display);
+      font-size: 26px;
+      letter-spacing: -0.5px;
+      color: var(--white);
+    }
+    .logo-dot { color: var(--teal-light); }
+    .logo-com {
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--slate);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-left: 2px;
+    }
+    .header-badge {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--teal-light);
+      background: rgba(13,153,115,0.15);
+      border: 1px solid rgba(13,153,115,0.3);
+      padding: 4px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Hero ─────────────────────────────────────────────────────────────── */
+    .hero {
+      padding: 52px 0 40px;
+      text-align: center;
+    }
+    .hero h1 {
+      font-family: var(--font-display);
+      font-size: clamp(32px, 5vw, 48px);
+      line-height: 1.15;
+      margin-bottom: 14px;
+      color: var(--white);
+    }
+    .hero h1 em {
+      font-style: italic;
+      color: var(--teal-light);
+    }
+    .hero p {
+      font-size: 16px;
+      color: var(--slate);
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    /* ── Upload card ──────────────────────────────────────────────────────── */
+    .card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      margin-bottom: 24px;
+    }
+    .card-title {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--slate);
+      margin-bottom: 20px;
+    }
+
+    /* ── Drop zone ────────────────────────────────────────────────────────── */
+    .drop-zone {
+      border: 2px dashed rgba(255,255,255,0.18);
+      border-radius: var(--radius);
+      padding: 48px 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--teal-light);
+      background: rgba(13,153,115,0.06);
+    }
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-icon {
+      width: 52px; height: 52px; margin: 0 auto 16px;
+      background: rgba(13,153,115,0.15);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .drop-icon svg { color: var(--teal-light); }
+    .drop-zone h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+    .drop-zone p  { font-size: 13px; color: var(--slate); }
+    .drop-zone .hint {
+      display: inline-block;
+      margin-top: 14px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--slate);
+      background: rgba(255,255,255,0.05);
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+
+    /* ── File preview ─────────────────────────────────────────────────────── */
+    .file-preview {
+      display: none;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      background: rgba(13,153,115,0.08);
+      border: 1px solid rgba(13,153,115,0.25);
+      border-radius: var(--radius);
+      margin-top: 16px;
+    }
+    .file-preview.visible { display: flex; }
+    .file-icon {
+      width: 36px; height: 36px; flex-shrink: 0;
+      background: rgba(13,153,115,0.2);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .file-name { font-size: 14px; font-weight: 600; flex: 1; }
+    .file-meta { font-size: 12px; color: var(--slate); }
+    .file-remove {
+      background: none; border: none; cursor: pointer;
+      color: var(--slate); padding: 4px;
+      border-radius: 4px; transition: color 0.2s;
+    }
+    .file-remove:hover { color: var(--danger); }
+
+    /* ── LEI preview chips ────────────────────────────────────────────────── */
+    .lei-preview { margin-top: 20px; display: none; }
+    .lei-preview.visible { display: block; }
+    .lei-preview-label {
+      font-size: 11px; font-weight: 600; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--slate); margin-bottom: 10px;
+    }
+    .lei-chips {
+      display: flex; flex-wrap: wrap; gap: 8px;
+    }
+    .lei-chip {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--slate);
+      letter-spacing: 0.5px;
+    }
+    .more-chip {
+      font-size: 11px; padding: 4px 10px;
+      border-radius: 4px;
+      background: rgba(232,168,56,0.12);
+      border: 1px solid rgba(232,168,56,0.25);
+      color: var(--gold);
+    }
+
+    /* ── Process button ───────────────────────────────────────────────────── */
+    .btn-primary {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%;
+      background: var(--teal);
+      color: #fff;
+      font-family: var(--font-body);
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      border-radius: var(--radius);
+      padding: 14px 24px;
+      cursor: pointer;
+      margin-top: 24px;
+      transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+      box-shadow: 0 4px 16px rgba(13,153,115,0.3);
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: var(--teal-light);
+      box-shadow: 0 6px 24px rgba(18,184,134,0.35);
+    }
+    .btn-primary:active:not(:disabled) { transform: scale(0.99); }
+    .btn-primary:disabled {
+      opacity: 0.45; cursor: not-allowed; box-shadow: none;
+    }
+
+    /* ── Progress section ─────────────────────────────────────────────────── */
+    #section-progress { display: none; }
+    #section-progress.visible { display: block; }
+
+    .progress-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .progress-title { font-size: 14px; font-weight: 600; }
+    .progress-count { font-family: var(--font-mono); font-size: 13px; color: var(--teal-light); }
+
+    .progress-bar-wrap {
+      height: 6px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--teal), var(--teal-light));
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+
+    /* ── Live feed ────────────────────────────────────────────────────────── */
+    .live-feed {
+      max-height: 240px;
+      overflow-y: auto;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: rgba(0,0,0,0.25);
+      border-radius: var(--radius);
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+    .live-feed::-webkit-scrollbar { width: 4px; }
+    .live-feed::-webkit-scrollbar-track { background: transparent; }
+    .live-feed::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+    .feed-row {
+      display: flex; gap: 10px; align-items: center;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+    .feed-lei   { color: var(--slate); flex: 0 0 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .feed-status { flex: 0 0 120px; font-weight: 500; }
+    .feed-status.active   { color: var(--teal-light); }
+    .feed-status.inactive { color: var(--danger); }
+    .feed-status.unknown  { color: var(--gold); }
+    .feed-renewal { color: var(--slate); flex: 1; }
+    .feed-source  { color: rgba(255,255,255,0.3); font-size: 10px; }
+
+    /* ── Results section ──────────────────────────────────────────────────── */
+    #section-results { display: none; }
+    #section-results.visible { display: block; }
+
+    .results-summary {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+      margin-bottom: 24px;
+    }
+    .stat-box {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      text-align: center;
+    }
+    .stat-box.active  { border-color: rgba(13,153,115,0.35); background: rgba(13,153,115,0.06); }
+    .stat-box.inactive{ border-color: rgba(217,79,61,0.35);  background: rgba(217,79,61,0.06);  }
+    .stat-box.missing { border-color: rgba(232,168,56,0.35); background: rgba(232,168,56,0.06); }
+    .stat-num {
+      font-family: var(--font-display);
+      font-size: 36px;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .stat-box.active   .stat-num { color: var(--teal-light); }
+    .stat-box.inactive .stat-num { color: var(--danger); }
+    .stat-box.missing  .stat-num { color: var(--gold); }
+    .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--slate); }
+
+    /* ── Download button ──────────────────────────────────────────────────── */
+    .btn-download {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%;
+      background: rgba(13,153,115,0.12);
+      border: 1.5px solid var(--teal);
+      color: var(--teal-light);
+      font-family: var(--font-body);
+      font-size: 15px; font-weight: 600;
+      border-radius: var(--radius);
+      padding: 14px 24px;
+      cursor: pointer;
+      transition: background 0.2s;
+      text-decoration: none;
+    }
+    .btn-download:hover {
+      background: rgba(13,153,115,0.22);
+    }
+
+    /* ── Error / toast ────────────────────────────────────────────────────── */
+    .toast {
+      display: none;
+      background: rgba(217,79,61,0.15);
+      border: 1px solid rgba(217,79,61,0.4);
+      color: #FF8A7A;
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    .toast.visible { display: block; }
+
+    /* ── Footer ───────────────────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 40px 0 32px;
+      font-size: 12px;
+      color: rgba(138,160,181,0.5);
+    }
+    footer a { color: var(--slate); text-decoration: none; }
+    footer a:hover { color: var(--teal-light); }
+
+    /* ── Spinner ──────────────────────────────────────────────────────────── */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinning { display: inline-block; }
+
+    /* ── Responsive ───────────────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .results-summary { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 28px; }
+      .card { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header>
+  <div class="inner">
+    <div class="logo">
+      <span class="logo-text">Find<span class="logo-dot">LEI</span></span>
+      <span class="logo-com">.com</span>
+    </div>
+    <span class="header-badge">GLEIF Compliant</span>
+  </div>
+</header>
+
+<!-- ── Main ────────────────────────────────────────────────────────────────── -->
+<main class="page-wrap">
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1>LEI Batch Verification<br/><em>for Banking Compliance</em></h1>
+    <p>Upload your client spreadsheet. We'll check every LEI against GLEIF and report Entity Status + Next Renewal — instantly exported back to Excel.</p>
+  </div>
+
+  <!-- Toast error -->
+  <div id="toast" class="toast"></div>
+
+  <!-- ── Upload Card ──────────────────────────────────────────────────────── -->
+  <div class="card" id="card-upload">
+    <div class="card-title">Step 1 — Upload Spreadsheet</div>
+
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="file-input" accept=".xlsx,.xls,.ods,.xlsm" />
+      <div class="drop-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </div>
+      <h3>Drop your file here</h3>
+      <p>or click to browse</p>
+      <span class="hint">.xlsx &nbsp;·&nbsp; .ods &nbsp;·&nbsp; .xls</span>
+    </div>
+
+    <div class="file-preview" id="file-preview">
+      <div class="file-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0D9973" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+      </div>
+      <div style="flex:1">
+        <div class="file-name" id="file-name">—</div>
+        <div class="file-meta" id="file-meta">—</div>
+      </div>
+      <button class="file-remove" id="file-remove" title="Remove file">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="lei-preview" id="lei-preview">
+      <div class="lei-preview-label">Detected LEI codes</div>
+      <div class="lei-chips" id="lei-chips"></div>
+    </div>
+
+    <button class="btn-primary" id="btn-process" disabled>
+      <div class="spinner" id="btn-spinner"></div>
+      <span id="btn-label">Select a file to continue</span>
+    </button>
+  </div>
+
+  <!-- ── Progress Card ────────────────────────────────────────────────────── -->
+  <div class="card" id="section-progress">
+    <div class="card-title">Step 2 — Checking LEIs</div>
+    <div class="progress-header">
+      <span class="progress-title" id="progress-title">Processing…</span>
+      <span class="progress-count" id="progress-count">0 / 0</span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+    <div class="live-feed" id="live-feed">
+      <div style="color:var(--slate); font-size:11px; padding:4px 0;">Awaiting first result…</div>
+    </div>
+  </div>
+
+  <!-- ── Results Card ─────────────────────────────────────────────────────── -->
+  <div class="card" id="section-results">
+    <div class="card-title">Step 3 — Results</div>
+    <div class="results-summary">
+      <div class="stat-box active">
+        <div class="stat-num" id="stat-active">—</div>
+        <div class="stat-label">Active</div>
+      </div>
+      <div class="stat-box inactive">
+        <div class="stat-num" id="stat-inactive">—</div>
+        <div class="stat-label">Inactive / Other</div>
+      </div>
+      <div class="stat-box missing">
+        <div class="stat-num" id="stat-missing">—</div>
+        <div class="stat-label">Not Found</div>
+      </div>
+    </div>
+    <a class="btn-download" id="btn-download" href="#">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Download Enriched Excel
+    </a>
+  </div>
+
+</main>
+
+<!-- ── Footer ──────────────────────────────────────────────────────────────── -->
+<footer>
+  <p>Data sourced from <a href="https://www.gleif.org" target="_blank" rel="noopener">GLEIF</a> and <a href="https://www.lei-lookup.com" target="_blank" rel="noopener">LEI-Lookup</a>.
+  &nbsp;·&nbsp; FindLEI is not affiliated with GLEIF.</p>
+</footer>
+
+<!-- ── App Script ───────────────────────────────────────────────────────────── -->
+<script>
+/* ─────────────────────────────────────────────────────────────────────────────
+   FindLEI Frontend
+   State machine:  idle → uploaded → processing → done
+   Communication:  REST + Server-Sent Events
+───────────────────────────────────────────────────────────────────────────── */
+
+const API = '';   // same origin – relative paths
+
+// ── State ──────────────────────────────────────────────────────────────────
+let state = {
+  phase:      'idle',    // idle | uploaded | processing | done
+  jobId:      null,
+  leiCount:   0,
+  filename:   '',
+  results:    [],
+  eventSource: null,
+};
+
+// ── DOM refs ───────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+const dropZone    = $('drop-zone');
+const fileInput   = $('file-input');
+const filePreview = $('file-preview');
+const fileName    = $('file-name');
+const fileMeta    = $('file-meta');
+const fileRemove  = $('file-remove');
+const leiPreview  = $('lei-preview');
+const leiChips    = $('lei-chips');
+const btnProcess  = $('btn-process');
+const btnLabel    = $('btn-label');
+const btnSpinner  = $('btn-spinner');
+const toast       = $('toast');
+
+const secProgress = $('section-progress');
+const progressBar  = $('progress-bar');
+const progressCount= $('progress-count');
+const progressTitle= $('progress-title');
+const liveFeed     = $('live-feed');
+
+const secResults = $('section-results');
+const statActive  = $('stat-active');
+const statInactive= $('stat-inactive');
+const statMissing = $('stat-missing');
+const btnDownload = $('btn-download');
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  setTimeout(() => toast.classList.remove('visible'), 6000);
+}
+
+function setPhase(phase) {
+  state.phase = phase;
+
+  secProgress.classList.toggle('visible', ['processing'].includes(phase));
+  secResults.classList.toggle('visible',  ['done'].includes(phase));
+
+  btnProcess.disabled = (phase !== 'uploaded');
+
+  if (phase === 'processing') {
+    btnSpinner.classList.add('spinning');
+    btnLabel.textContent = 'Processing…';
+    btnProcess.disabled = true;
+  } else if (phase === 'uploaded') {
+    btnSpinner.classList.remove('spinning');
+    btnLabel.textContent = `Check ${state.leiCount} LEI${state.leiCount !== 1 ? 's' : ''}`;
+  } else if (phase === 'done') {
+    btnSpinner.classList.remove('spinning');
+    btnLabel.textContent = 'Process Another File';
+    btnProcess.disabled = false;
+    progressTitle.textContent = '✓ All LEIs processed';
+  } else {
+    btnSpinner.classList.remove('spinning');
+    btnLabel.textContent = 'Select a file to continue';
+  }
+}
+
+function fmtSize(bytes) {
+  if (bytes < 1024)    return bytes + ' B';
+  if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1048576).toFixed(1) + ' MB';
+}
+
+function statusClass(s) {
+  if (!s) return 'unknown';
+  const u = s.toUpperCase();
+  if (u.includes('ACTIVE') && !u.includes('INACTIVE')) return 'active';
+  if (u === 'NOT FOUND' || u === 'INVALID FORMAT') return 'inactive';
+  return 'unknown';
+}
+
+// ── Drag & drop ────────────────────────────────────────────────────────────
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) handleFile(fileInput.files[0]);
+});
+
+fileRemove.addEventListener('click', resetUpload);
+
+// ── File handling ──────────────────────────────────────────────────────────
+async function handleFile(file) {
+  toast.classList.remove('visible');
+  setPhase('idle');
+
+  // Show preview skeleton
+  fileName.textContent = file.name;
+  fileMeta.textContent = fmtSize(file.size);
+  filePreview.classList.add('visible');
+  leiChips.innerHTML   = '';
+  leiPreview.classList.remove('visible');
+  btnLabel.textContent = 'Uploading…';
+  btnSpinner.classList.add('spinning');
+  btnProcess.disabled  = true;
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  let data;
+  try {
+    const resp = await fetch(`${API}/api/upload`, { method: 'POST', body: fd });
+    data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || 'Upload failed');
+  } catch (err) {
+    showToast('Upload error: ' + err.message);
+    resetUpload();
+    return;
+  }
+
+  state.jobId    = data.job_id;
+  state.leiCount = data.lei_count;
+  state.filename = data.filename;
+
+  // Show LEI chips
+  const chips = data.preview.map(lei =>
+    `<span class="lei-chip">${lei}</span>`
+  ).join('');
+  const extra = data.lei_count - data.preview.length;
+  leiChips.innerHTML = chips + (extra > 0 ? `<span class="more-chip">+${extra} more</span>` : '');
+  leiPreview.classList.add('visible');
+
+  fileMeta.textContent = `${fmtSize(file.size)} · ${data.lei_count} LEI codes detected`;
+
+  setPhase('uploaded');
+}
+
+function resetUpload() {
+  if (state.eventSource) { state.eventSource.close(); state.eventSource = null; }
+  fileInput.value = '';
+  filePreview.classList.remove('visible');
+  leiPreview.classList.remove('visible');
+  leiChips.innerHTML = '';
+  state = { phase: 'idle', jobId: null, leiCount: 0, filename: '', results: [], eventSource: null };
+  setPhase('idle');
+  secProgress.classList.remove('visible');
+  secResults.classList.remove('visible');
+  progressBar.style.width = '0%';
+  liveFeed.innerHTML = '<div style="color:var(--slate); font-size:11px; padding:4px 0;">Awaiting first result…</div>';
+}
+
+// ── Process ────────────────────────────────────────────────────────────────
+btnProcess.addEventListener('click', async () => {
+  if (state.phase === 'done') { resetUpload(); return; }
+  if (state.phase !== 'uploaded') return;
+
+  setPhase('processing');
+
+  // Start the job
+  const resp = await fetch(`${API}/api/process/${state.jobId}`, { method: 'POST' });
+  if (!resp.ok) {
+    const d = await resp.json();
+    showToast(d.detail || 'Process start failed');
+    setPhase('uploaded');
+    return;
+  }
+
+  liveFeed.innerHTML = '';
+  progressCount.textContent = `0 / ${state.leiCount}`;
+  progressBar.style.width   = '0%';
+  progressTitle.textContent = 'Checking LEIs…';
+
+  // Open SSE stream
+  openStream();
+});
+
+function openStream() {
+  if (state.eventSource) state.eventSource.close();
+  const es = new EventSource(`${API}/api/stream/${state.jobId}`);
+  state.eventSource = es;
+
+  es.onmessage = function(e) {
+    const d = JSON.parse(e.data);
+    updateProgress(d);
+    if (d.status === 'completed') { es.close(); finalize(); }
+    if (d.status === 'error')     { es.close(); showToast('Processing error: ' + (d.error_msg || 'unknown')); setPhase('uploaded'); }
+  };
+  es.onerror = function() {
+    es.close();
+    // Fall back to polling
+    pollStatus();
+  };
+}
+
+function updateProgress(d) {
+  const pct = d.total ? Math.round(d.progress / d.total * 100) : 0;
+  progressBar.style.width   = pct + '%';
+  progressCount.textContent = `${d.progress} / ${d.total}`;
+
+  if (d.latest_result) {
+    appendFeedRow(d.latest_result);
+    state.results = [...state.results.filter(r => r.lei !== d.latest_result.lei), d.latest_result];
+  }
+}
+
+function appendFeedRow(r) {
+  const sc = statusClass(r.entity_status);
+  const row = document.createElement('div');
+  row.className = 'feed-row';
+  row.innerHTML = `
+    <span class="feed-lei">${escHtml(r.lei)}</span>
+    <span class="feed-status ${sc}">${escHtml(r.entity_status || '—')}</span>
+    <span class="feed-renewal">${escHtml(r.next_renewal || '—')}</span>
+    <span class="feed-source">${escHtml(r.source || '')}</span>
+  `;
+  liveFeed.appendChild(row);
+  liveFeed.scrollTop = liveFeed.scrollHeight;
+}
+
+async function pollStatus() {
+  while (state.phase === 'processing') {
+    await sleep(1500);
+    try {
+      const resp = await fetch(`${API}/api/status/${state.jobId}`);
+      const d    = await resp.json();
+      updateProgress(d);
+      state.results = d.results;
+      if (d.status === 'completed') { finalize(); return; }
+      if (d.status === 'error')     { showToast('Error: ' + d.error_msg); setPhase('uploaded'); return; }
+    } catch { /* ignore transient errors */ }
+  }
+}
+
+function finalize() {
+  state.results.sort((a,b) => a.lei.localeCompare(b.lei));
+
+  let active = 0, inactive = 0, missing = 0;
+  for (const r of state.results) {
+    const s = (r.entity_status || '').toUpperCase();
+    if (s.includes('ACTIVE') && !s.includes('INACTIVE')) active++;
+    else if (s === 'NOT FOUND' || s === 'INVALID FORMAT' || !s) missing++;
+    else inactive++;
+  }
+
+  statActive.textContent   = active;
+  statInactive.textContent = inactive;
+  statMissing.textContent  = missing;
+
+  btnDownload.href = `${API}/api/download/${state.jobId}`;
+  btnDownload.setAttribute('download', '');
+
+  setPhase('done');
+  secResults.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ── Utilities ──────────────────────────────────────────────────────────────
+const sleep   = ms => new Promise(r => setTimeout(r, ms));
+const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+</script>
+</body>
+</html>
