@@ -1,6 +1,7 @@
 [tool.pytest.ini_options]
 asyncio_mode   = "auto"
 testpaths      = ["tests"]
+pythonpath     = ["."]
 log_cli        = true
 log_cli_level  = "WARNING"
 addopts        = "-v --tb=short"
