@@ -153,7 +153,7 @@ proxy_read_timeout 300s;
 | Check | Tool | Status |
 |-------|------|--------|
 | Unit + integration tests | pytest + anyio | ✅ 42 tests |
-| Dependency vulnerabilities (SCA) | pip-audit | ✅ CI enforced |
+| Dependency vulnerabilities (SCA) | pip-audit | ✅ CI enforced (last known good) |
 | Static code analysis | bandit | ✅ MEDIUM+ severity |
 | Secret scanning | TruffleHog | ✅ verified secrets only |
 | SBOM generation | Syft | ✅ CycloneDX + SPDX |
@@ -174,7 +174,7 @@ proxy_read_timeout 300s;
 | Progress streaming | Server-Sent Events |
 | Observability | prometheus-client, structured JSON logs |
 | Containerisation | Docker + Docker Compose |
-| CI/CD | GitHub Actions |
+| CI/CD | GitHub Actions (last known good) |
 
 ---
 
