@@ -42,6 +42,14 @@ app = FastAPI(
     description="LEI batch lookup for banking compliance",
     version="1.0.0",
 )
+@app.middleware("http")
+async def limit_upload_size(request: Request, call_next):
+    if request.method == "POST" and "/api/upload" in request.url.path:
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > 10 * 1024 * 1024:
+            from fastapi.responses import JSONResponse
+            return JSONResponse(status_code=413, content={"detail": "File too large (max 10 MB)"})
+    return await call_next(request)
 
 app.add_middleware(
     CORSMiddleware,
