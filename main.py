@@ -153,6 +153,14 @@ def _get_job(job_id: str) -> dict:
         raise HTTPException(status_code=404, detail="Job not found")
     return jobs[job_id]
 
+def _validate_file_magic(content: bytes, suffix: str) -> bool:
+    """Validate file content matches its extension via magic bytes."""
+    if suffix in {".xlsx", ".xlsm", ".ods"}:
+        return content[:4] == b"PK\x03\x04"
+    if suffix == ".xls":
+        return content[:8] == b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1"
+    return False
+
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
@@ -190,6 +198,11 @@ async def upload_excel(request: Request, file: UploadFile = File(...)):
         raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
 
     content = await file.read()
+    if not _validate_file_magic(content, suffix):
+        raise HTTPException(
+            status_code=400,
+            detail="File content does not match the declared file type."
+        )
     if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
 
