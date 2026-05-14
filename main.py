@@ -32,6 +32,29 @@ from metrics import (
     jobs_total, lei_duration_seconds, leis_checked_total, metrics_response,
 )
 
+# ── Per-IP Upload Rate Limiter ──────────────────────────────────────────────
+from collections import defaultdict
+import threading
+
+RATE_LIMIT_UPLOADS = 5        # max uploads per IP
+RATE_LIMIT_WINDOW  = 60       # seconds
+
+_upload_log: dict = defaultdict(list)
+_upload_lock = threading.Lock()
+
+def _check_upload_rate_limit(ip: str) -> bool:
+    """Returns True if allowed, False if rate limit exceeded."""
+    now = time.time()
+    with _upload_lock:
+        timestamps = _upload_log[ip]
+        # κράτα μόνο τα timestamps εντός του window
+        _upload_log[ip] = [t for t in timestamps if now - t < RATE_LIMIT_WINDOW]
+        if len(_upload_log[ip]) >= RATE_LIMIT_UPLOADS:
+            return False
+        _upload_log[ip].append(now)
+        return True
+
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 setup_logging()
 logger = logging.getLogger("findlei.main")
@@ -117,7 +140,7 @@ def _get_job(job_id: str) -> dict:
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.post("/api/upload")
-async def upload_excel(file: UploadFile = File(...)):
+async def upload_excel(request: Request, file: UploadFile = File(...)):
     """
     Receive an Excel file, detect the LEI column, return a job_id + preview.
     """
@@ -128,6 +151,14 @@ async def upload_excel(file: UploadFile = File(...)):
             status_code=400,
             detail=f"Unsupported file type '{suffix}'. Use .xlsx, .ods or .xls",
         )
+        
+client_ip = request.client.host if request.client else "unknown"
+    if not _check_upload_rate_limit(client_ip):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many uploads. Please wait before trying again."
+        )
+
 
     MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
