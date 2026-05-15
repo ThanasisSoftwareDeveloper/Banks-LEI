@@ -22,6 +22,8 @@
 - 🐳 **Containerised** — single `docker compose up` deployment
 
 ---
+[Επισκεφθείτε το site https://www.findlei.com/](https://www.findlei.com/)
+
 > **Note:** The current API specification supports up to **200 LEI codes per uploaded file**. Each document you upload is processed as a single batch run of up to 200 records.
 
 ## 🏗️ Architecture
@@ -124,7 +126,7 @@ proxy_read_timeout 300s;
 
 ## 📖 Usage
 
-1. Open `http://localhost:8000`
+1. Open `https://www.thanasis-codes.eu/` (former `http://localhost:8000`)
 2. Upload your client Excel file (`.xlsx`, `.ods`, or `.xls`)
 3. The app auto-detects the LEI column
 4. Click **Check LEIs** — watch the live feed
