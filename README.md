@@ -22,7 +22,7 @@
 - 🐳 **Containerised** — single `docker compose up` deployment
 
 ---
-[Επισκεφθείτε το site https://www.findlei.com/](https://www.findlei.com/)
+> Visit our site [https://www.findlei.com/](https://www.findlei.com/)
 
 > **Note:** The current API specification supports up to **200 LEI codes per uploaded file**. Each document you upload is processed as a single batch run of up to 200 records.
 
